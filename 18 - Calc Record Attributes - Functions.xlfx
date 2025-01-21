@@ -1,0 +1,63 @@
+
+
+// updateExRateType
+LET(allData, VSTACK(FILTER(sourceAttrMS, sourceAttrMS[TYPE]="Tax", ""), FILTER(sourceAttrEV, sourceAttrEV[TYPE]="Tax", "")),     
+    colList, FILTER(allData, INDEX(allData, ,1)<>""),     
+    recordList, CHOOSECOLS(colList, 1), 
+    exRateList, CHOOSECOLS(colList, 8),
+    taxFeeTypeList, CHOOSECOLS(colList, 5),    
+    invGrpList, CHOOSECOLS(colList, 3), 
+    processOrderList, CHOOSECOLS(colList, 9),     
+    idList, MAKEARRAY(ROWS(recordList), 1, LAMBDA(row,col, row + 1000)),     
+    VSTACK(HSTACK(idList, MAP(idList, LAMBDA(a, " "))),                   
+           HSTACK(idList + 0.1, MAP(recordList, 'Calc Record Attributes'!sqlCommentTax )),                   
+           HSTACK(idList + 0.2, MAP(recordList, 'Calc Record Attributes'!sqlGetBillingID )),
+           HSTACK(idList + 0.3, MAP(taxFeeTypeList, 'Calc Record Attributes'!sqlGetTaxFeeTypeID)),
+           HSTACK(idList + 0.4, MAP(exRateList, 'Calc Record Attributes'!sqlGetExRateType)),                   
+           HSTACK(idList + 0.5, MAP(invGrpList, processOrderList, 'Calc Record Attributes'!sqlUpdateTax))
+          )
+   )
+
+
+
+
+
+LET(allData, VSTACK(FILTER(sourceAttrMS, sourceAttrMS[TYPE]="Tax", ""), FILTER(sourceAttrEV, sourceAttrEV[TYPE]="Tax", "")),          
+colList, FILTER(allData, INDEX(allData, ,1)<>""),          recordList, CHOOSECOLS(colList, 1),      exRateList, CHOOSECOLS(colList, 8),     taxFeeTypeList, CHOOSECOLS(colList, 5),         invGrpList, CHOOSECOLS(colList, 3),      processOrderList, CHOOSECOLS(colList, 9),          idList, MAKEARRAY(ROWS(recordList), 1, LAMBDA(row,col, row + 1000)),          VSTACK(HSTACK(idList, MAP(idList, LAMBDA(a, " "))),                               HSTACK(idList + 0.1, MAP(recordList, 'Calc Record Attributes'!sqlCommentTax )),                               HSTACK(idList + 0.2, MAP(recordList, 'Calc Record Attributes'!sqlGetBillingID )),            HSTACK(idList + 0.3, MAP(taxFeeTypeList, 'Calc Record Attributes'!sqlGetTaxFeeTypeID)),            HSTACK(idList + 0.4, MAP(exRateList, 'Calc Record Attributes'!sqlGetExRateType)),                               HSTACK(idList + 0.5, MAP(invGrpList, processOrderList, 'Calc Record Attributes'!sqlUpdateTax))           )    )
+   
+   SELECT @taxFeeTypeID = FEETYPEID FROM RBS_ADM_FEETYPE WHERE FEETYPENAME = 'TAX CON TK 3J97'
+   
+// sqlGetTaxFeeTypeID
+LAMBDA(taxFeeType, "SELECT @taxFeeTypeID = FEETYPEID FROM RBS_ADM_FEETYPE WHERE FEETYPENAME = " & sqlQt & taxFeeType & sqlQt)
+
+
+   
+// sqlGetBillingID
+LAMBDA(groupName, "SELECT @billingIDSet = BILLINGIDSET, @billingID = BILLINGID FROM RBS_BILL_BILLING WHERE BILLINGGROUPNAME = " & sqlQT & SUBSTITUTE(groupName, sqlQT, sqlQT & sqlQT) & sqlQT)   
+   
+// sqlCommentTax
+LAMBDA(recordList, "/* Updating tax fee type and exchange rate type for " & recordList & " */")
+
+// getExchangeRateType
+LAMBDA(exRateType, "SELECT @typeExRate = BSSLOOKUPTYPEID FROM BSS_UTIL_LOOKUPTYPE WHERE TYPENAME = " & sqlQT & exRateType & sqlQT & " AND LOOKUPTYPEGROUPID = @groupID")
+   
+// updateTax 
+LAMBDA(invGrpList, processOrderList, "UPDATE RBS_BILL_TAX SET EXRATETYPE_BSSLOOKUPTYPEID = @typeExRate, TAX_FEETYPEID = @taxFeeTypeID WHERE BILLINGID = @billingID AND BILLINGINVOICEGROUP = " & invGrpList & " AND PROCESSORDER = " & processOrderList )
+
+
+// xmlIsDate
+// Returns TRUE if the column header of the parameter ends with the word 'Date'
+LAMBDA(a, IF(UPPER(RIGHT(xmlTag(a), 4))="DATE", TRUE, FALSE))
+
+// xmlValue
+LAMBDA(colValue, IF(OR( ISBLANK(colValue), colValue=""),"", IF(colValue=TRUE, 1, IF(colValue=FALSE, 0, IF(xmlIsDate(colValue), TEXT(colValue, xmlDateFormat),  colValue) ))))
+
+// xmlTag
+LAMBDA(colValue, XLOOKUP(INDEX(xmlData[#Headers], COLUMN(colValue)-1), xmlMapTag[Header], xmlMapTag[XMLTag]))
+
+// xmlTagA
+LAMBDA(colHeaders, colValue, XLOOKUP(INDEX(colHeaders, COLUMN(colValue)-1), xmlMapTag[Header], xmlMapTag[XMLTag]))
+
+// xmlTagValue
+
+
